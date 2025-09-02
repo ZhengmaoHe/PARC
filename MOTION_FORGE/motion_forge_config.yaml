@@ -3,7 +3,7 @@ load_sampler: False
 use_contact_info: True
 
 char_file: "data/assets/humanoid.xml"
-motion_filepath: "../tests/parc/april272025/demo/TEASER_TERRAIN_mxu.pkl"
+motion_filepath: "parc_model/april272025/demo/TEASER_TERRAIN_mxu.pkl"
 motion_filepath: "data/terrains/civilization.pkl"
 
 other_motion_filepaths: [
@@ -15,4 +15,4 @@ input_folder_dir: "data/terrains/"
 sampler_filepath: "../Data/samplers/misc_mdm_sampler_cpu.pkl"
 
 mdm_filepaths:
-  main: "../tests/parc/april272025/iter_3/p1_train_gen/checkpoints/model_20000.pkl"
+  main: "parc_model/april272025/iter_3/p1_train_gen/checkpoints/model_20000.pkl"
