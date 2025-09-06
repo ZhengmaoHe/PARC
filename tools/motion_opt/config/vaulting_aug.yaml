@@ -1,0 +1,31 @@
+motions_yaml_path: "../Data/parkour_dataset/v_02/vaulting/opt2/motions.yaml"
+num_new_motions: 256
+device: "cuda:0" # maybe not?
+output_folder_path: "output/_motions/aug/"
+char_model: "data/assets/humanoid.xml"
+use_wandb: True
+num_iters: 2000
+step_size: 0.001
+w_root_pos: 1.0
+w_root_rot: 10.0
+w_joint_rot: 1.0
+w_smoothness: 10.0
+w_penetration: 100.0
+w_contact: 100.0
+w_sliding: 1000.0
+max_motion_len: 6.0 # s
+terrain_aug_type: "HEIGHT_SCALE"
+min_h_scale: 0.6 # 0.6 * 1.1m = 0.66m
+max_h_scale: 1.2 # 1.2 * 1.1m = 1.32m
+max_heading_angle: 15.0 # degrees
+min_heading_angle: 15.0 # degrees
+terrain_padding_size: 5 # for hopefully allowing rotated motion to stay in terrain
+
+char_point_samples:
+  sphere_num_subdivisions: 0
+  box_num_slices: 2
+  box_dim_x: 3
+  box_dim_y: 6
+  capsule_num_circle_points: 4
+  capsule_num_sphere_subdivisions: 0
+  capsule_num_cylinder_slices: 4

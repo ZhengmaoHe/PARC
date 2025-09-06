@@ -1,0 +1,15 @@
+*.pyc
+data_dir/
+out_dir/
+samplers/
+.vs/
+__pycache__/
+output/
+.vscode/
+wandb/
+confidential/
+output*/
+.polyscope.ini
+imgui.ini
+data/assets/smplx/*
+*.DS_store

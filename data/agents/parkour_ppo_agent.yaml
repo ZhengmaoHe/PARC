@@ -1,0 +1,41 @@
+agent_name: "DM_PPO"
+project_name: "parkour"
+exp_name: "mdm_test15_009"
+use_wandb: False
+
+model:
+  actor_net: "fc_3layers_2048units"
+  actor_init_output_scale: 0.01
+  actor_std_type: "FIXED"
+  action_std: 0.05
+  
+  critic_net: "fc_3layers_2048units"
+
+optimizer:
+  learning_rate: 5e-5
+  weight_decay: 0.0 #1e-5
+  momentum: 0.9
+  type: "SGD"
+
+discount: 0.99
+steps_per_iter: 32
+iters_per_output: 100
+iters_per_checkpoint: 200
+test_episodes: 16
+normalizer_samples: 0 #300000000
+
+norm_obs_clip: 10.0
+update_epochs: 5
+batch_size: 4
+td_lambda: 0.95
+ppo_clip_ratio: 0.2
+norm_adv_clip: 4.0
+action_bound_weight: 10.0
+action_entropy_weight: 0.0
+action_reg_weight: 0.0
+critic_loss_weight: 10.0
+critic_loss_type: "L2"
+debug_log: "output/debug_log.txt"
+
+clip_grad_norm: True
+max_grad_norm: 1000.0

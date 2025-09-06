@@ -1,0 +1,209 @@
+env_name: "ig_parkour"
+
+env:
+    demo_mode: False # REMEMBER TO SET TO FALSE WHEN TRAINING
+    char_file: "data/assets/humanoid.xml"
+    control_mode: "pd"
+    start_paused: False
+    write_agent_states: False
+    sim_freq: 60
+    control_freq: 30
+    env_spacing: 2.0
+    camera_mode: "track"
+    env_style: "square"
+    rand_reset: True
+    enable_early_termination: True
+    episode_length: 10.0 # seconds
+
+    fraction_dm_envs: 0.0    
+
+    global_obs: False # TODO: check everywhere this is used
+    root_height_obs: False # for char env, we don't use it
+    global_root_height_obs: False
+    init_pose: [0, 0, 0.882416, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    pose_termination: True
+    pose_termination_dist:
+    - 0.7 # pelvis
+    - 1.0 # head
+    - 0.7 # right_upper_arm
+    - 0.7 # right_lower_arm
+    - 0.7 # right_hand
+    - 0.7 # left_upper_arm
+    - 0.7 # left_lower_arm
+    - 0.7 # left_hand
+    - 1.0 # right_thigh
+    - 1.2 # right_shin
+    - 10.0 # right_foot
+    - 1.0 # left_thigh
+    - 1.2 # left_shin
+    - 10.0 # left_foot
+    tar_obs_steps: [1, 2, 3, 10, 20, 30]
+
+    enable_replan_timer_obs: True
+    
+
+    rand_root_pos_offset_scale: 0.075
+    ref_char_offset: [0.0, 0.0, 0.0] # m
+    
+    termination_height: 0.15 # tune this for rolling?
+    key_bodies: ["right_hand", "left_hand", "right_foot", "left_foot"]
+    contact_bodies: []
+
+    joint_err_w: [1.0, 0.6, 0.6, 0.4, 0.0, 0.6, 0.4, 0.0, 1.0, 0.6, 0.4, 1.0, 0.6, 0.4]
+  
+    plane:
+        static_friction: 1.0
+        dynamic_friction: 1.0
+        restitution: 0.0
+
+    
+    #cfg_scale: 0.1
+    use_contact_info: True
+    contact_weights: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+    debug_visuals: False
+    pose_w: 0.5
+    vel_w: 0.1
+    root_pos_w: 0.15
+    root_vel_w: 0.1
+    key_pos_w: 0.15
+    track_root: True
+    track_root_h: True
+    root_pos_termination_dist: 0.6 # m
+    root_rot_termination_angle: 1.309 # 75 degrees
+    has_target_xy_obs: True
+
+    target_radius: 1.0 # m
+    task1_w: 0.7 # position
+    task2_w: 0.3 # min velocity
+    rel_deepmimic_w: 1.0
+    rel_task_w: 0.0
+
+    contact_detection_eps: 0.00001
+    target_motion_height_buffer: 0.01
+
+    ray_points_behind: 2
+    ray_points_ahead: 60
+    ray_num_left: 3
+    ray_num_right: 3
+    ray_dx: 0.05
+    ray_angle: 0.26179938779
+    min_obs_h: -3.0
+    max_obs_h: 3.0
+    dm:
+        motion_file: "../Data/simple_0_6_height_motions/mdm_batches/july_30_2024/motions.yaml"
+        target_xy_future_time_max: 5.0
+        target_xy_future_time_min: 1.0
+        terrain_save_path: "../Data/terrains/dm_terrain.pkl"
+        heightmap:
+            padding: 0.4
+            horizontal_scale: 0.4
+        terrains_per_motion: 16
+        fail_rate_quantiles: [0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+        has_motion_classes: True
+        motion_classes:
+            - "climbing"
+            - "jumping"
+            - "mid_climbing"
+            - "misc_mdm"
+            - "platform"
+            - "running"
+            - "stairs"
+            - "vaulting"
+            - "mdm_batch_000"
+            - "mdm_batch_001"
+            - "mdm_batch_002"
+            - "mdm_batch_003"
+            - "mdm_batch_004"
+            - "mdm_batch_005"
+            - "mdm_batch_006"
+            - "mdm_batch_007"
+            - "mdm_batch_008"
+            - "mdm_batch_009"
+            - "mdm_batch_010"
+            - "mdm_batch_011"
+            - "mdm_batch_012"
+            - "mdm_batch_013"
+            - "mdm_batch_014"
+            - "mdm_batch_015"
+            - "mdm_batch_016"
+            - "mdm_batch_017"
+            - "mdm_batch_018"
+            - "mdm_batch_019"
+            - "TEASER_TERRAIN_000"
+            - "TEASER_TERRAIN_001"
+            - "TEASER_TERRAIN_002"
+            - "TEASER_TERRAIN_003"
+            - "TEASER_TERRAIN_004"
+            - "TEASER_TERRAIN_005"
+            - "TEASER_TERRAIN_006"
+            - "TEASER_TERRAIN_007"
+            - "TEASER_TERRAIN_008"
+            - "TEASER_TERRAIN_009"
+            - "TEASER_TERRAIN_010"
+            - "TEASER_TERRAIN_011"
+            - "TEASER_TERRAIN_012"
+            - "TEASER_TERRAIN_013"
+            - "TEASER_TERRAIN_014"
+            - "TEASER_TERRAIN_015"
+            - "TEASER_TERRAIN_016"
+            - "TEASER_TERRAIN_017"
+            - "TEASER_TERRAIN_018"
+            - "TEASER_TERRAIN_019"
+            - "TEASER_TERRAIN_020"
+            - "TEASER_TERRAIN_021"
+            - "TEASER_TERRAIN_022"
+            - "TEASER_TERRAIN_023"
+            - "TEASER_TERRAIN_024"
+            - "TEASER_TERRAIN_025"
+            - "TEASER_TERRAIN_026"
+            - "TEASER_TERRAIN_027"
+            - "TEASER_TERRAIN_028"
+            - "TEASER_TERRAIN_029"
+            - "TEASER_TERRAIN_030"
+            - "TEASER_TERRAIN_031"
+            - "TEASER_TERRAIN_032"
+            - "TEASER_TERRAIN_033"
+            - "TEASER_TERRAIN_034"
+            - "TEASER_TERRAIN_035"
+            - "TEASER_TERRAIN_036"
+            - "TEASER_TERRAIN_037"
+            - "TEASER_TERRAIN_038"
+            - "TEASER_TERRAIN_039"
+        terrain_build_mode: "square"
+        min_motion_weight: 0.01
+    mgdm: # NOT USED FOR ANYTHING
+        target_dist_mean: 4.0
+        target_dist_max: 10.0
+        target_dist_min: 0.0
+        target_dur_max: 10.0
+        target_dur_min: 5.0
+        target_heading_scale: 1.0
+        max_replans: 20 # greater than ep length? should be fine
+        plan_length: 0.33
+        model_path: "../Data/mdm_models/test50_model5250.pkl"
+        ddim_stride: 50
+        cfg_scale: 0.7
+        terrain_save_path: "../Data/terrains/mgdm_terrain.pkl"
+        heightmap:
+            safety_region: 15.0
+            horizontal_scale: 0.4
+            padding: 6.0
+            terrain_length: 25.0
+            generator_name: "terrain_runner"
+            sq_m_per_env: 2.0
+            boxes_per_sq_m: 0.025
+            num_segments: 32
+            platform_heights: [0.6]
+
+sim:
+    substeps: 2 # 120 Hz
+    physx:
+        num_threads: 4
+        solver_type: 1  # 0: pgs, 1: tgs
+        num_position_iterations: 4
+        num_velocity_iterations: 0
+        contact_offset: 0.02
+        rest_offset: 0.0
+        bounce_threshold_velocity: 0.2
+        max_depenetration_velocity: 10.0
+        default_buffer_size_multiplier: 10.0

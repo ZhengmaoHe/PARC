@@ -1,0 +1,12 @@
+gym[accept-rom-license]==0.26.2
+matplotlib
+numpy
+opencv-python
+pyyaml
+tensorboardX
+torch==1.13.1
+wandb>=0.17.4
+embreex
+trimesh
+polyscope
+send2trash

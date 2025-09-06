@@ -1,0 +1,27 @@
+motions_yaml_path: "../Data/parkour_dataset/v_05/unreal/unreal_take_004_edit_before_opt.pkl"
+device: "cuda:0"
+output_folder_path: "output/_motions/opt/"
+char_model: "data/assets/humanoid.xml"
+use_wandb: True
+num_iters: 1000
+step_size: 0.001
+w_root_pos: 1.0
+w_root_rot: 10.0
+w_joint_rot: 1.0
+w_smoothness: 10.0
+w_penetration: 100.0
+w_contact: 0.0
+w_sliding: 1000.0
+w_body_constraints: 500.0
+
+frame_stride: 4 # skip every 4th frame
+make_looping: True
+
+char_point_samples:
+  sphere_num_subdivisions: 0
+  box_num_slices: 2
+  box_dim_x: 2
+  box_dim_y: 2
+  capsule_num_circle_points: 2
+  capsule_num_sphere_subdivisions: 0
+  capsule_num_cylinder_slices: 1

@@ -1,0 +1,9 @@
+env_config: PARC/tracker_config/dm_env_default.yaml
+agent_config: "PARC/tracker_config/dm_agent_default.yaml"
+output_dir: "../tests/parc/april272025/tracker/iter_2/"
+num_envs: 2048
+max_samples: 10000000000
+device: "cuda:0"
+dataset_file: "../tests/parc/april272025/kin_gen/iter_2_opt/motions.yaml"
+in_model_file: "../tests/parc/april272025/tracker/iter_1/checkpoints_2/model_0000152400.pt"
+create_dataset_config: "PARC/create_dataset_config.yaml"

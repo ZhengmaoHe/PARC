@@ -1,0 +1,20 @@
+exp_name: "april272025"
+output_folder_path: "../tests/parc/"
+
+terrain_generation_mode: "TERRAIN" # [BOXES, FILE]
+path_generation_mode: "lines" # [astar, lines]
+
+generator_config: "PARC/generator_default.yaml"
+kin_gen_config: "PARC/kin_gen_default.yaml"
+tracker_config: "PARC/tracker_default.yaml"
+phys_record_config: "PARC/phys_record_default.yaml"
+
+# requires generator model to be loaded
+is_train_generator: False
+# requires tracker model to be loaded
+is_train_tracker: False
+
+initial_dataset: "../Data/parkour_dataset/v_07/motions.yaml"
+num_iters: 4
+
+generator_model_path: "../tests/parc/april272025/generator/iter_1checkpoints/model_25000.pkl"

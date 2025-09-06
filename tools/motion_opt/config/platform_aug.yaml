@@ -1,0 +1,28 @@
+motions_yaml_path: "tools/motion_opt/config/platform_motions.yaml"
+num_new_motions: 256
+device: "cpu" # maybe not?
+output_folder_path: "output/_motions/aug/"
+char_model: "data/assets/humanoid.xml"
+use_wandb: True
+num_iters: 1000
+step_size: 0.001
+w_root_pos: 1.0
+w_root_rot: 10.0
+w_joint_rot: 1.0
+w_smoothness: 10.0
+w_penetration: 100.0
+w_contact: 100.0
+w_sliding: 1000.0
+max_motion_len: 4.0 # s
+terrain_aug_type: "HEIGHT_SCALE"
+min_h_scale: 0.5 # 0.5 * 0.6m = 0.3m
+max_h_scale: 1.2 # 1.2 * 0.6m = 0.72m
+
+char_point_samples:
+  sphere_num_subdivisions: 0
+  box_num_slices: 2
+  box_dim_x: 3
+  box_dim_y: 6
+  capsule_num_circle_points: 4
+  capsule_num_sphere_subdivisions: 0
+  capsule_num_cylinder_slices: 4

@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{6cbc0484-fec8-4966-9d8b-0d33c12a51cd}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>run.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Web launcher</LaunchProvider>
+    <InterpreterId>CondaEnv|CondaEnv|rl_forge</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <CommandLineArguments>--arg_file args/test_args.txt --visualize true --mode train --num_envs 2 --num_workers 1 --device cpu </CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
+    <Name>rl_forge</Name>
+    <WebBrowserUrl>http://localhost</WebBrowserUrl>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="requirements.txt" />
+    <Content Include="tools\bvh_loader\__pycache__\bvh.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\bvh_util.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\char_motion_util.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\char_xml_util.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\motion_struct.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\vis.cpython-37.pyc" />
+    <Content Include="tools\bvh_loader\__pycache__\xml.cpython-37.pyc" />
+    <Content Include="tools\retargeter\char_models\beyond_char_palms.xml" />
+    <Content Include="tools\retargeter\char_models\humanoid_beyond.xml" />
+    <Content Include="tools\retargeter\char_models\humanoid_beyond_toes.xml" />
+    <Content Include="tools\retargeter\char_models\humanoid_toes.xml" />
+    <Content Include="tools\retargeter\configs\beyond_to_rl_forge_config.yaml" />
+    <Content Include="tools\retargeter\configs\lafan1_to_rl_forge_config.yaml" />
+    <Content Include="tools\retargeter\__pycache__\retargeting.cpython-37.pyc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="anim\kin_char_model.py" />
+    <Compile Include="anim\motion_lib.py" />
+    <Compile Include="envs\atari_env.py" />
+    <Compile Include="envs\atari_wrappers.py" />
+    <Compile Include="envs\base_env.py" />
+    <Compile Include="envs\env_builder.py" />
+    <Compile Include="envs\env_dm.py" />
+    <Compile Include="envs\ig_add_env.py" />
+    <Compile Include="envs\ig_amp_env.py" />
+    <Compile Include="envs\ig_char_dof_test_env.py" />
+    <Compile Include="envs\ig_char_record_motion_env.py" />
+    <Compile Include="envs\ig_task_location_env.py" />
+    <Compile Include="envs\ig_view_motion_env.py" />
+    <Compile Include="envs\ig_deepmimic_env.py" />
+    <Compile Include="envs\ig_env.py" />
+    <Compile Include="envs\ig_char_env.py" />
+    <Compile Include="envs\ig_particle_discrete_env.py" />
+    <Compile Include="envs\ig_particle_env.py" />
+    <Compile Include="learning\add_agent.py" />
+    <Compile Include="learning\add_model.py" />
+    <Compile Include="learning\agent_builder.py" />
+    <Compile Include="learning\amp_agent.py" />
+    <Compile Include="learning\amp_model.py" />
+    <Compile Include="learning\awr_agent.py" />
+    <Compile Include="learning\awr_model.py" />
+    <Compile Include="learning\base_agent.py" />
+    <Compile Include="learning\base_model.py" />
+    <Compile Include="learning\distribution_categorical.py" />
+    <Compile Include="learning\dqn_agent.py" />
+    <Compile Include="learning\dqn_model.py" />
+    <Compile Include="learning\experience_buffer.py" />
+    <Compile Include="learning\distribution_gaussian_diag.py" />
+    <Compile Include="learning\mp_optimizer.py" />
+    <Compile Include="learning\nets\cnn_3conv_1fc_0.py" />
+    <Compile Include="learning\nets\fc_2layers_1024units.py" />
+    <Compile Include="learning\nets\fc_2layers_128units.py" />
+    <Compile Include="learning\nets\fc_2layers_256units.py" />
+    <Compile Include="learning\nets\fc_2layers_512units.py" />
+    <Compile Include="learning\nets\net_builder.py" />
+    <Compile Include="learning\nets\__init__.py" />
+    <Compile Include="learning\normalizer.py" />
+    <Compile Include="learning\ppo_agent.py" />
+    <Compile Include="learning\ppo_model.py" />
+    <Compile Include="learning\return_tracker.py" />
+    <Compile Include="learning\rl_util.py" />
+    <Compile Include="learning\sac_agent.py" />
+    <Compile Include="learning\sac_model.py" />
+    <Compile Include="run.py" />
+    <Compile Include="tools\bvh_loader\bvh_motion.py" />
+    <Compile Include="tools\bvh_loader\bvh_util.py" />
+    <Compile Include="tools\bvh_loader\bvh_vis.py" />
+    <Compile Include="tools\bvh_loader\char_motion_util.py" />
+    <Compile Include="tools\bvh_loader\import_bvh.py" />
+    <Compile Include="tools\edit_motion\edit_motion.py" />
+    <Compile Include="tools\plot_action_dist\plot_action_dist.py" />
+    <Compile Include="tools\plot_log\plot_log.py" />
+    <Compile Include="tools\port_deepmimic_motion\port_deepmimic_motion.py" />
+    <Compile Include="tools\port_motion_poselib\port_motion_poselib.py" />
+    <Compile Include="tools\retargeter\retargeter.py" />
+    <Compile Include="tools\retargeter\retarget_motion.py" />
+    <Compile Include="tools\util\plot_util.py" />
+    <Compile Include="util\arg_parser.py" />
+    <Compile Include="util\circular_buffer.py" />
+    <Compile Include="util\logger.py" />
+    <Compile Include="util\math_util.py" />
+    <Compile Include="util\mp_util.py" />
+    <Compile Include="util\tb_logger.py" />
+    <Compile Include="util\torch_util.py" />
+    <Compile Include="util\util.py" />
+    <Compile Include="util\wandb_logger.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="anim\" />
+    <Folder Include="envs\" />
+    <Folder Include="learning" />
+    <Folder Include="learning\nets\" />
+    <Folder Include="tools\" />
+    <Folder Include="tools\bvh_loader\" />
+    <Folder Include="tools\bvh_loader\__pycache__\" />
+    <Folder Include="tools\edit_motion\" />
+    <Folder Include="tools\plot_action_dist\" />
+    <Folder Include="tools\port_gr1_motion\" />
+    <Folder Include="tools\plot_log\" />
+    <Folder Include="tools\port_deepmimic_motion\" />
+    <Folder Include="tools\port_motion_poselib\" />
+    <Folder Include="tools\retargeter\" />
+    <Folder Include="tools\retargeter\char_models\" />
+    <Folder Include="tools\retargeter\configs\" />
+    <Folder Include="tools\retargeter\__pycache__\" />
+    <Folder Include="tools\util\" />
+    <Folder Include="util" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="CondaEnv|CondaEnv|rl_forge" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

@@ -1,0 +1,6 @@
+output_dir: ../folder/
+device: "cuda:0"
+create_dataset_config: "../path.yaml"
+model_file: "../path.pt"
+env_file: "../path.yaml"
+agent_file: "../path.yaml"
