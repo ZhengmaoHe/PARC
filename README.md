@@ -34,6 +34,7 @@ These files are loaded with anim/motion_lib.py and anim/kin_char_model.py.
 You can view them with motion_forge.py, by editing the "motion_filepath" param in MOTION_FORGE/motion_forge_config.yaml
 https://1sfu-my.sharepoint.com/:f:/g/personal/mxa23_sfu_ca/Et16uLMFxoRKouibvBa7LbwBEmX5_iI5a8dZyiMc0wmSTA?e=ihma1b
 The password is "PARC".
+The initial motion capture data was captured at Beyond Capture Studios, and funded by the NSERC Discovery Grant RGPIN-2024-06752.
 
 ## Codebase Guide
 The PARC training loop consists of 4 main stages, which are individually run by:
