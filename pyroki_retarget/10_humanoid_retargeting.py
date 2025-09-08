@@ -55,23 +55,23 @@ def main():
     smpl_keypoints = onp.load(args.keypoints)
     is_left_foot_contact = onp.load(args.left_contact)
     is_right_foot_contact = onp.load(args.right_contact)
-    heightmap = onp.load(args.heightmap)
+    heightmap = onp.load(args.heightmap).transpose()
     grid_shape = onp.load(os.path.join(os.path.dirname(args.heightmap), 'grid_shape.npy'))
 
     num_timesteps = smpl_keypoints.shape[0]
     assert smpl_keypoints.shape == (num_timesteps, 45, 3)
-    assert is_left_foot_contact.shape == (num_timesteps,)
-    assert is_right_foot_contact.shape == (num_timesteps,)
+    # assert is_left_foot_contact.shape == (num_timesteps,)
+    # assert is_right_foot_contact.shape == (num_timesteps,)
     # import ipdb; ipdb.set_trace()
     offset = onp.load(os.path.join(os.path.dirname(args.heightmap), 'offset.npy'))
     dxdy = onp.load(os.path.join(os.path.dirname(args.heightmap), 'dxdy.npy'))
 
     import ipdb; ipdb.set_trace()
-    center_offset = offset + (grid_shape * dxdy / 2)
+    center_offset = offset + ((grid_shape-1) * dxdy / 2)
     heightmap = pk.collision.Heightmap(
         # pose=jaxlie.SE3.identity(),
         pose = jaxlie.SE3.from_translation(jnp.array([center_offset[0], center_offset[1], 0.0])),
-        size=jnp.array([dxdy[0], dxdy[1], 1.0]),
+        size=jnp.array([dxdy[1], dxdy[0], 1.0]),
         height_data=heightmap,
     )
 

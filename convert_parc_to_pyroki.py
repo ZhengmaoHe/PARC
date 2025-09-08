@@ -20,9 +20,9 @@ SMPL_JOINT_NAMES = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2100_2149/teaser_2100_0_opt_flipped_dm.pkl', help='Path to input .pkl file')
+    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2450_2499/teaser_2450_0_opt_dm.pkl', help='Path to input .pkl file')
     parser.add_argument('--xml', type=str, default='data/assets/humanoid.xml', help='Path to humanoid.xml')
-    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2100_2149/teaser_2100_0_opt_flipped_dm', help='Directory to output npy files')
+    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2450_2499/teaser_2450_0_opt_dm', help='Directory to output npy files')
     parser.add_argument('--padding', type=float, default=2.0, help='Padding for terrain slicing in meters')
     args = parser.parse_args()
 
@@ -41,6 +41,8 @@ def main():
         terrain.to_torch(device)
         padding = args.padding
         sliced_terrain, adjusted_frames = terrain_util.slice_terrain_around_motion(frames, terrain, padding=padding)
+        # adjusted_frames = frames
+        # sliced_terrain = terrain
         frames = adjusted_frames
         heightmap = sliced_terrain.hf.cpu().numpy()
         dxdy = sliced_terrain.dxdy.cpu().numpy()
