@@ -67,14 +67,17 @@ def main():
     dxdy = onp.load(os.path.join(os.path.dirname(args.heightmap), 'dxdy.npy'))
 
     import ipdb; ipdb.set_trace()
+
+    height_ratio = 130/180.0
     center_offset = offset + ((grid_shape-1) * dxdy / 2)
     heightmap = pk.collision.Heightmap(
         # pose=jaxlie.SE3.identity(),
         pose = jaxlie.SE3.from_translation(jnp.array([center_offset[0], center_offset[1], 0.0])),
-        size=jnp.array([dxdy[1], dxdy[0], 1.0]),
+        size=jnp.array([dxdy[1], dxdy[0], 1.0*height_ratio]),
         height_data=heightmap,
     )
 
+    smpl_keypoints[:, :, 2] = smpl_keypoints[:, :, 2] * height_ratio
     # Get the left and right foot keypoints, projected on the heightmap.
     left_foot_keypoint_idx = SMPL_JOINT_NAMES.index("left_foot")
     right_foot_keypoint_idx = SMPL_JOINT_NAMES.index("right_foot")
