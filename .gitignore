@@ -15,3 +15,4 @@ data/assets/smplx/*
 *.DS_store
 parc_model/*
 parc_dataset/*
+*.npy

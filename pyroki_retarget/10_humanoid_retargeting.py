@@ -55,19 +55,23 @@ def main():
     smpl_keypoints = onp.load(args.keypoints)
     is_left_foot_contact = onp.load(args.left_contact)
     is_right_foot_contact = onp.load(args.right_contact)
-    heightmap = onp.load(args.heightmap).transpose()
+    heightmap = onp.load(args.heightmap)
+    grid_shape = onp.load(os.path.join(os.path.dirname(args.heightmap), 'grid_shape.npy'))
 
     num_timesteps = smpl_keypoints.shape[0]
     assert smpl_keypoints.shape == (num_timesteps, 45, 3)
     assert is_left_foot_contact.shape == (num_timesteps,)
     assert is_right_foot_contact.shape == (num_timesteps,)
     # import ipdb; ipdb.set_trace()
+    offset = onp.load(os.path.join(os.path.dirname(args.heightmap), 'offset.npy'))
+    dxdy = onp.load(os.path.join(os.path.dirname(args.heightmap), 'dxdy.npy'))
+
+    import ipdb; ipdb.set_trace()
+    center_offset = offset + (grid_shape * dxdy / 2)
     heightmap = pk.collision.Heightmap(
         # pose=jaxlie.SE3.identity(),
-        pose = jaxlie.SE3(
-            jnp.concatenate([jnp.array([1,0,0,0]), jnp.array([-0.80119324, -5.1932373, 0])], axis=-1)
-        ),
-        size=jnp.array([0.4, 0.4, 1.0]),
+        pose = jaxlie.SE3.from_translation(jnp.array([center_offset[0], center_offset[1], 0.0])),
+        size=jnp.array([dxdy[0], dxdy[1], 1.0]),
         height_data=heightmap,
     )
 
@@ -290,6 +294,7 @@ def solve_retargeting(
             var_joints,
             target_keypoints,
         ),
+        # contact_cost(var_Ts_world_root, var_joints, is_left_foot_contact, is_right_foot_contact, heightmap),
     ]
 
     solution = (
@@ -297,7 +302,9 @@ def solve_retargeting(
             costs, [var_joints, var_Ts_world_root, var_smpl_joints_scale, var_offset]
         )
         .analyze()
-        .solve()
+        .solve(
+            verbose=False,
+            termination=jaxls.TerminationConfig(max_iterations=20),)
     )
     transform = solution[var_Ts_world_root]
     offset = solution[var_offset]

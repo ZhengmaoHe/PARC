@@ -4,8 +4,6 @@ import torch
 import numpy as np
 from anim.kin_char_model import KinCharModel
 import util.torch_util as torch_util
-import sys
-sys.path.append('/home/ubuntu/myProject/PARC')
 import util.terrain_util as terrain_util
 
 # SMPL joint names for reference (45 keypoints)
@@ -22,14 +20,14 @@ SMPL_JOINT_NAMES = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2000_2049/teaser_2000_0_opt_dm.pkl', help='Path to input .pkl file')
+    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2100_2149/teaser_2100_0_opt_flipped_dm.pkl', help='Path to input .pkl file')
     parser.add_argument('--xml', type=str, default='data/assets/humanoid.xml', help='Path to humanoid.xml')
-    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2000_2049/', help='Directory to output npy files')
+    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2100_2149/teaser_2100_0_opt_flipped_dm', help='Directory to output npy files')
+    parser.add_argument('--padding', type=float, default=2.0, help='Padding for terrain slicing in meters')
     args = parser.parse_args()
 
     device = 'cpu'
     model = KinCharModel(device)
-    import ipdb; ipdb.set_trace()
     model.load_char_file(args.xml)
     with open(args.pkl, 'rb') as f:
         data = pickle.load(f)
@@ -41,14 +39,16 @@ def main():
     if 'terrain' in data:
         terrain = data['terrain']
         terrain.to_torch(device)
-        padding = 2.0
+        padding = args.padding
         sliced_terrain, adjusted_frames = terrain_util.slice_terrain_around_motion(frames, terrain, padding=padding)
         frames = adjusted_frames
         heightmap = sliced_terrain.hf.cpu().numpy()
         dxdy = sliced_terrain.dxdy.cpu().numpy()
+        offset = sliced_terrain.min_point[:2].cpu().numpy()
     else:
         heightmap = np.zeros((100,100))
         dxdy = np.array([0.4, 0.4])
+        offset = np.array([0.0, 0.0])
 
     root_pos = frames[:, 0:3]
     root_rot_exp = frames[:, 3:6]
@@ -104,6 +104,9 @@ def main():
     np.save(os.path.join(args.output_dir, 'right_foot_contact.npy'), right_foot_contact)
     np.save(os.path.join(args.output_dir, 'heightmap.npy'), heightmap)
     np.save(os.path.join(args.output_dir, 'dxdy.npy'), dxdy)
+    np.save(os.path.join(args.output_dir, 'offset.npy'), offset)
+    grid_shape = np.array(heightmap.shape)
+    np.save(os.path.join(args.output_dir, 'grid_shape.npy'), grid_shape)
 
     print(f'Files saved to {args.output_dir}')
 
