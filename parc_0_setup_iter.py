@@ -4,7 +4,7 @@ import datetime
 from pathlib import Path
 # this script is used to set up the configs for the PARC iteration
 
-output_dir = Path("../tests/parc/experiment/iter_1/")
+output_dir = Path("parc_dataset/experiment/iter_1/")
 
 ##### INPUT PATHS #####
 input_mdm_config_path = Path("PARC/train_gen_default.yaml")
@@ -28,8 +28,8 @@ input_tracker_model_path = None # put path to tracker here after iteration 1
 
 ### CREATE DATASET CONFIG ###
 input_create_dataset_config_path = Path("PARC/create_dataset_config.yaml")
-iter_start_dataset_path = Path("../tests/parc/april272025/iter_1/iter_1_start_motions.yaml")
-input_dataset_folder_paths = ["../Data/initial/"] # replace with path to your initial dataset, could be the downloaded dataset "parc_dataset_august_12/initial_aug/" if you want to reproduce results
+iter_start_dataset_path = Path("parc_dataset/april272025/iter_1/iter_1_start_motions.yaml")
+input_dataset_folder_paths = ["parc_dataset/april272025/initial_aug/"] # replace with path to your initial dataset, could be the downloaded dataset "parc_dataset_august_12/initial_aug/" if you want to reproduce results
 
 
 write_train_gen = True
@@ -41,7 +41,7 @@ write_phys_record = True
 # Ensure all input paths exist
 assert input_create_dataset_config_path.is_file()
 assert input_mdm_config_path.is_file()
-assert input_model_path.is_file()
+# assert input_model_path.is_file()
 assert input_kin_gen_config_path.is_file()
 assert input_tracker_config_path.is_file()
 #assert

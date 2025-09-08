@@ -14,3 +14,4 @@ imgui.ini
 data/assets/smplx/*
 *.DS_store
 parc_model/*
+parc_dataset/*

@@ -56,6 +56,60 @@ parc_5_create_dataset.py
 ```
 This file also computes sampling weights, which is useful when there is much more motion data for certain types of clips than others (e.g. lots of running motions, few climbing motions). It also pre-computes some terrain data that will help with augmentation when training the motion diffusion model.
 
+## PARC Scripts Overview
+
+This section provides brief descriptions of the key scripts in the PARC training loop and supporting tools:
+
+- **parc_0_setup_iter.py**: Automates the creation of configuration files for a PARC iteration, setting up paths and parameters for all stages to ensure consistency.
+
+- **parc_1_train_gen.py**: Trains the Motion Diffusion Model (MDM) using the dataset to generate kinematic motions, supporting features like heightmap observations and target conditioning.
+
+- **parc_2_kin_gen.py**: Generates new kinematic motions on procedurally created terrains (e.g., boxes, paths, stairs) using the trained MDM, with optional optimization for contact and penetration losses.
+
+- **parc_3_tracker.py**: Trains a reinforcement learning tracker to follow generated kinematic motions in a physics simulation environment, producing a model for physical tracking.
+
+- **parc_4_phys_record.py**: Records physical simulations of tracked motions to augment the dataset, using the trained tracker model in Isaac Gym.
+
+- **parc_5_create_dataset.py**: Creates or updates the dataset YAML file from motion data folders, computing sampling weights and optionally preprocessing terrain data for balanced training.
+
+These scripts form the core of the PARC iteration process, enabling physics-based data augmentation for character controllers.
+
+## Data
+组织文件：create_dataset_config.yaml
+    ```motions:
+      - class: "running"  # 基于文件夹名称的运动类
+        file: "../Data/initial/running_001.pkl"  # .pkl 文件相对/绝对路径
+        weight: 1.0  # 采样权重，默认 1.0；可基于文件数比例计算
+      - class: "jumping"
+        file: "../Data/initial/jumping_002.pkl"
+        weight: 0.5  # 如果 cut_some_classes_in_half=True，此类文件可能减半，权重调整
+    char_filepath: "data/assets/humanoid.xml"  # humanoid 模型 XML
+    max_terrain_dim_x: 45  # 地形维度限制
+    max_terrain_dim_y: 45```
+
+运动序列文件：
+    ```{
+        """
+        check: _get_char_state()
+        Keys in data: dict_keys(['fps', 'loop_mode', 'frames', 'contacts', 'obs', 'obs_shapes', 'terrain'])
+        fps: 30
+        loop_mode: CLAMP
+        frames: shape (265, 34), dtype float32
+        contacts: shape (265, 15), dtype float32
+        obs: shape (265, 1312), dtype float32
+        obs_shapes: type <class 'collections.OrderedDict'>
+        terrain: type <class 'util.terrain_util.SubTerrain'>
+        """
+        "frames": torch.Tensor([...])  # [num_frames, dof] 
+        "contacts": torch.Tensor([...])
+        "terrain": SubTerrain(...)  # 自定义对象：高度图 hf (torch.Tensor [dim_x, dim_y])、dims、dx/dy 等
+        "fps": 30  # 帧率 (sequence_fps)
+        "loop_mode": "CLAMP"  # 循环模式
+        "hf_mask_inds": torch.Tensor([...])  # 可选：高度图掩码索引 (用于增强)
+        "loss": float  # 可选：生成损失 (e.g., contact_loss)
+        "opt:body_constraints": dict(...)  # 可选：优化约束 (e.g., 身体点采样)
+    }```
+
 ## MOTION_FORGE
 The mouse cursor controls target direction and editing of terrain.
 
