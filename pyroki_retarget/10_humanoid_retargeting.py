@@ -27,6 +27,7 @@ from _utils import (
 import argparse
 import pickle
 import os
+from yourdfpy import URDF
 
 class RetargetingWeights(TypedDict):
     local_alignment: float
@@ -38,23 +39,25 @@ class RetargetingWeights(TypedDict):
 def main():
     """Main function for humanoid retargeting."""
 
-    urdf = load_robot_description("g1_description")
+    # urdf = load_robot_description("g1_description")
+    urdf_path = "pyroki_retarget/unitree_description/urdf/g1_retarget/main.urdf"
+    urdf = URDF.load(urdf_path)  # 直接从文件加载 URDF
     robot = pk.Robot.from_urdf(urdf)
-
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm")
-    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2000_2049/retargeted_motion.pkl")
+    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm.pkl")
 
     args = parser.parse_args()
     args.keypoints = os.path.join(args.input_dir, 'smpl_keypoints.npy')
-    args.left_contact = os.path.join(args.input_dir, 'left_foot_contact.npy')
-    args.right_contact = os.path.join(args.input_dir, 'right_foot_contact.npy')
+    # args.left_contact = os.path.join(args.input_dir, 'left_foot_contact.npy')
+    # args.right_contact = os.path.join(args.input_dir, 'right_foot_contact.npy')
     args.heightmap = os.path.join(args.input_dir, 'heightmap.npy')
 
     # Load data from args
     smpl_keypoints = onp.load(args.keypoints)
-    is_left_foot_contact = onp.load(args.left_contact)
-    is_right_foot_contact = onp.load(args.right_contact)
+    # is_left_foot_contact = onp.load(args.left_contact)
+    # is_right_foot_contact = onp.load(args.right_contact)
     heightmap = onp.load(args.heightmap).transpose()
     grid_shape = onp.load(os.path.join(os.path.dirname(args.heightmap), 'grid_shape.npy'))
 
@@ -62,13 +65,13 @@ def main():
     assert smpl_keypoints.shape == (num_timesteps, 45, 3)
     # assert is_left_foot_contact.shape == (num_timesteps,)
     # assert is_right_foot_contact.shape == (num_timesteps,)
-    # import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     offset = onp.load(os.path.join(os.path.dirname(args.heightmap), 'offset.npy'))
     dxdy = onp.load(os.path.join(os.path.dirname(args.heightmap), 'dxdy.npy'))
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
-    height_ratio = 130/180.0
+    height_ratio = 132/175.0
     center_offset = offset + ((grid_shape-1) * dxdy / 2)
     heightmap = pk.collision.Heightmap(
         # pose=jaxlie.SE3.identity(),
@@ -137,11 +140,27 @@ def main():
             base_frame.wxyz = onp.array(Ts_world_root.wxyz_xyz[tstep][:4])
             base_frame.position = onp.array(Ts_world_root.wxyz_xyz[tstep][4:])
             urdf_vis.update_cfg(onp.array(joints[tstep]))
+            # Compute current robot keypoints
+            current_cfg = jnp.array(joints[tstep])
+            fk = robot.forward_kinematics(cfg=current_cfg)
+            T_root_link = jaxlie.SE3(fk)
+            T_world_root_t = jaxlie.SE3.from_rotation_and_translation(
+                jaxlie.SO3(wxyz=jnp.array(Ts_world_root.wxyz_xyz[tstep][:4])),
+                jnp.array(Ts_world_root.wxyz_xyz[tstep][4:])
+            )
+            T_world_link = T_world_root_t @ T_root_link
+            robot_keypoints = T_world_link.translation()[g1_joint_retarget_indices]
             server.scene.add_point_cloud(
                 "/target_keypoints",
                 onp.array(smpl_keypoints[tstep]),
                 onp.array((0, 0, 255))[None].repeat(45, axis=0),
-                point_size=0.01,
+                point_size=0.02,
+            )
+            server.scene.add_point_cloud(
+                "/robot_keypoints",
+                onp.array(robot_keypoints),
+                onp.array((255, 0, 0)),
+                point_size=0.02,
             )
 
         time.sleep(1/30)
@@ -266,6 +285,20 @@ def solve_retargeting(
         keypoint_pos = keypoints[smpl_joint_retarget_indices]
         return (link_pos - keypoint_pos).flatten() * weights["global_alignment"]
 
+    # # Define symmetry cost factory before adding to list
+    # @jaxls.Cost.create_factory
+    # def symmetry_cost(
+    #     var_values: jaxls.VarValues,
+    #     var_robot_cfg: jaxls.Var[jnp.ndarray],
+    # ) -> jax.Array:
+    #     robot_cfg = var_values[var_robot_cfg]
+    #     pairs = jnp.array([
+    #         [robot.joints.actuated_names.index("left_hip_yaw_joint"), robot.joints.actuated_names.index("right_hip_yaw_joint")],
+    #         [robot.joints.actuated_names.index("left_hip_pitch_joint"), robot.joints.actuated_names.index("right_hip_pitch_joint")],
+    #     ])  # Closed array, removed comment to avoid issues
+    #     diffs = robot_cfg[pairs[:, 0]] - robot_cfg[pairs[:, 1]]
+    #     return diffs.flatten() * 1.0
+
     costs = [
         # Costs that are relatively self-contained to the robot.
         retargeting_cost(
@@ -297,7 +330,11 @@ def solve_retargeting(
             var_joints,
             target_keypoints,
         ),
+        # Uncomment contact_cost
         # contact_cost(var_Ts_world_root, var_joints, is_left_foot_contact, is_right_foot_contact, heightmap),
+
+        # New symmetry cost: Minimize differences between left/right joint pairs
+        # symmetry_cost(var_joints),
     ]
 
     solution = (
@@ -306,8 +343,8 @@ def solve_retargeting(
         )
         .analyze()
         .solve(
-            verbose=False,
-            termination=jaxls.TerminationConfig(max_iterations=20),)
+            verbose=True,
+            termination=jaxls.TerminationConfig(max_iterations=100),)
     )
     transform = solution[var_Ts_world_root]
     offset = solution[var_offset]

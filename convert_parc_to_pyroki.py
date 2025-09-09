@@ -8,21 +8,58 @@ import util.terrain_util as terrain_util
 
 # SMPL joint names for reference (45 keypoints)
 SMPL_JOINT_NAMES = [
-    "pelvis", "left_hip", "right_hip", "spine_1", "left_knee", "right_knee", "spine_2",
-    "left_ankle", "right_ankle", "spine_3", "left_foot", "right_foot", "neck",
-    "left_collar", "right_collar", "head", "left_shoulder", "right_shoulder",
-    "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hand", "right_hand",
-    "nose", "right_eye", "left_eye", "right_ear", "left_ear",
-    "left_big_toe", "left_small_toe", "left_heel", "right_big_toe", "right_small_toe", "right_heel",
-    "left_thumb", "left_index", "left_middle", "left_ring", "left_pinky",
-    "right_thumb", "right_index", "right_middle", "right_ring", "right_pinky"
+    "pelvis", 
+    "left_hip", 
+    "right_hip", 
+    "spine_1", 
+    "left_knee", 
+    "right_knee", 
+    "spine_2",
+    "left_ankle", 
+    "right_ankle", 
+    "spine_3", 
+    "left_foot", 
+    "right_foot", 
+    "neck",
+    "left_collar", 
+    "right_collar", 
+    "head", 
+    "left_shoulder", 
+    "right_shoulder",
+    "left_elbow", 
+    "right_elbow", 
+    "left_wrist", 
+    "right_wrist", 
+    "left_hand", 
+    "right_hand",
+    "nose", 
+    "right_eye", 
+    "left_eye", 
+    "right_ear", 
+    "left_ear",
+    "left_big_toe", 
+    "left_small_toe", 
+    "left_heel", 
+    "right_big_toe", 
+    "right_small_toe", 
+    "right_heel",
+    "left_thumb", 
+    "left_index", 
+    "left_middle", 
+    "left_ring", 
+    "left_pinky",
+    "right_thumb", 
+    "right_index", 
+    "right_middle", 
+    "right_ring", 
+    "right_pinky"
 ]
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2450_2499/teaser_2450_0_opt_dm.pkl', help='Path to input .pkl file')
+    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2050_2099/teaser_2050_0_opt_dm.pkl', help='Path to input .pkl file')
     parser.add_argument('--xml', type=str, default='data/assets/humanoid.xml', help='Path to humanoid.xml')
-    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2450_2499/teaser_2450_0_opt_dm', help='Directory to output npy files')
+    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2050_2099/teaser_2050_0_opt_dm', help='Directory to output npy files')
     parser.add_argument('--padding', type=float, default=2.0, help='Padding for terrain slicing in meters')
     args = parser.parse_args()
 
@@ -67,12 +104,14 @@ def main():
         'torso': 3,  # spine_1
         'left_shin': 4,
         'right_shin': 5,
-        'upper_torso': 6,  # assume torso is spine_2
+        'upper_torso': 6,  # spine_2
         'left_foot': 7,
         'right_foot': 8,
         'neck': 9,  # spine_3
-        'left_foot_toe': 10,
-        'right_foot_toe': 11,
+        'left_foot_toe': 10,  # Approximate left_foot as left_big_toe
+        'right_foot_toe': 11,  # Approximate right_foot as right_big_toe
+        'left_collar': 13,  # SMPL left_collar
+        'right_collar': 14,  # SMPL right_collar
         'head': 15,
         'left_upper_arm': 16,
         'right_upper_arm': 17,
@@ -80,14 +119,20 @@ def main():
         'right_lower_arm': 19,
         'left_hand': 20,
         'right_hand': 21,
-        # Add more mappings as needed, set others to None or handle zeros
+        # New mappings to reduce zeros
+        'left_shoulder': 16,  # Already partially mapped, reinforce
+        'right_shoulder': 17,
+        'left_heel': 31,  # SMPL left_heel (approximate from shin/foot)
+        'right_heel': 34,  # SMPL right_heel
     }
-
+    print(model._name_body_map)
+    # {'pelvis': 0, 'torso': 1, 'head': 2, 'right_upper_arm': 3, 'right_lower_arm': 4, 'right_hand': 5, 'left_upper_arm': 6, 'left_lower_arm': 7, 'left_hand': 8, 'right_thigh': 9, 'right_shin': 10, 'right_foot': 11, 'left_thigh': 12, 'left_shin': 13, 'left_foot': 14}
     smpl_keypoints = np.zeros((num_frames, 45, 3))
     for body_name, smpl_idx in humanoid_to_smpl.items():
         if body_name in model._name_body_map:
             model_id = model._name_body_map[body_name]
             smpl_keypoints[:, smpl_idx] = body_pos[:, model_id].numpy()
+            print("map {} to {}".format(model_id, smpl_idx))
 
     # Foot contacts
     contacts = data.get('contacts', np.zeros((num_frames, model.get_num_joints())))

@@ -16,3 +16,5 @@ data/assets/smplx/*
 parc_model/*
 parc_dataset/*
 *.npy
+pyroki_retarget/unitree_description/*
+!pyroki_retarget/unitree_description/urdf/g1_retarget/main.urdf

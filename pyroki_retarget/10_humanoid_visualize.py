@@ -42,8 +42,8 @@ def main():
     robot = pk.Robot.from_urdf(urdf)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', type=str, default="pyroki_retarget/teaser_2450_2499/teaser_2450_0_opt_dm")
-    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2450_2499/teaser_2400_0teaser_2450_0_opt_dm_opt_dm.pkl")
+    parser.add_argument('--input_dir', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm")
+    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2400_0teaser_2450_0_opt_dm_opt_dm.pkl")
 
     args = parser.parse_args()
     args.keypoints = os.path.join(args.input_dir, 'smpl_keypoints.npy')
