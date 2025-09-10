@@ -41,7 +41,7 @@ class RetargetingWeights(TypedDict):
     """Floor contact weight, to place the robot's foot on the floor."""
     root_smoothness: float
     """Root smoothness weight, to penalize the robot's root from jittering too much."""
-    foot_skating: float
+    skating: float
     """Foot skating weight, to penalize the robot's foot from moving when it is in contact with the floor."""
     world_collision: float
     """World collision weight, to penalize the robot from colliding with the world."""
@@ -150,7 +150,7 @@ def main():
             global_alignment=1.0,
             contact=1.0,
             root_smoothness=1.0,
-            foot_skating=1.0,
+            skating=1.0,
             world_collision=0.1,
         ),  # type: ignore
     )
@@ -411,7 +411,7 @@ def solve_retargeting(
         ).log().flatten() * weights["root_smoothness"]
 
     @jaxls.Cost.create_factory
-    def skating_cost(
+    def general_skating_cost(
         var_values: jaxls.VarValues,
         var_Ts_world_root: jaxls.SE3Var,
         var_robot_cfg: jaxls.Var[jnp.ndarray],
@@ -419,34 +419,27 @@ def solve_retargeting(
         var_Ts_world_root_prev: jaxls.SE3Var,
         var_robot_cfg_prev: jaxls.Var[jnp.ndarray],
         var_offset_prev: OffsetVar,
-        is_left_foot_contact: jnp.ndarray,
-        is_right_foot_contact: jnp.ndarray,
+        smpl_contacts: jnp.ndarray,
     ) -> jax.Array:
-        """Cost to penalize the robot for skating."""
         T_world_root = var_values[var_Ts_world_root]
         robot_cfg = var_values[var_robot_cfg]
         T_root_link = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg))
         offset = var_values[var_offset]
         T_link = T_world_root @ T_root_link
-        left_foot_pos = T_link.translation()[left_foot_idx] + offset
-        right_foot_pos = T_link.translation()[right_foot_idx] + offset
+        link_pos = T_link.translation()[g1_joint_retarget_indices] + offset
 
         T_world_root_prev = var_values[var_Ts_world_root_prev]
         robot_cfg_prev = var_values[var_robot_cfg_prev]
         T_root_link_prev = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg_prev))
         offset_prev = var_values[var_offset_prev]
         T_link_prev = T_world_root_prev @ T_root_link_prev
-        left_foot_pos_prev = T_link_prev.translation()[left_foot_idx] + offset_prev
-        right_foot_pos_prev = T_link_prev.translation()[right_foot_idx] + offset_prev
+        link_pos_prev = T_link_prev.translation()[g1_joint_retarget_indices] + offset_prev
 
-        skating_cost_left = is_left_foot_contact * (left_foot_pos - left_foot_pos_prev)
-        skating_cost_right = is_right_foot_contact * (
-            right_foot_pos - right_foot_pos_prev
-        )
+        contact_mask = smpl_contacts[smpl_joint_retarget_indices] > 0
+        skating_residual = contact_mask[:, None] * (link_pos - link_pos_prev)
 
-        return (
-            jnp.stack([skating_cost_left, skating_cost_right]) * weights["foot_skating"]
-        )
+        return skating_residual.flatten() * weights["skating"]
+
 
     @jaxls.Cost.create_factory
     def world_collision_cost(
@@ -522,15 +515,14 @@ def solve_retargeting(
             jaxls.SE3Var(jnp.arange(1, timesteps)),
             jaxls.SE3Var(jnp.arange(0, timesteps - 1)),
         ),
-        skating_cost(
+        general_skating_cost(
             jaxls.SE3Var(jnp.arange(1, timesteps)),
             robot.joint_var_cls(jnp.arange(1, timesteps)),
             OffsetVar(jnp.arange(1, timesteps)),
             jaxls.SE3Var(jnp.arange(0, timesteps - 1)),
             robot.joint_var_cls(jnp.arange(0, timesteps - 1)),
             OffsetVar(jnp.arange(0, timesteps - 1)),
-            is_left_foot_contact[:-1],
-            is_right_foot_contact[:-1],
+            smpl_contacts[:-1],
         ),
         world_collision_cost(
             var_Ts_world_root,
