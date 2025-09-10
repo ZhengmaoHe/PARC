@@ -144,6 +144,13 @@ def main():
     left_foot_contact = contacts[:, left_foot_id]
     right_foot_contact = contacts[:, right_foot_id]
 
+    # Map contacts to SMPL format
+    smpl_contacts = np.zeros((num_frames, 45))
+    for body_name, smpl_idx in humanoid_to_smpl.items():
+        if body_name in model._name_body_map:
+            model_id = model._name_body_map[body_name]
+            smpl_contacts[:, smpl_idx] = contacts[:, model_id]
+
     # Save to output_dir
     import os
     os.makedirs(args.output_dir, exist_ok=True)
@@ -151,6 +158,7 @@ def main():
     np.save(os.path.join(args.output_dir, 'smpl_keypoints.npy'), smpl_keypoints)
     np.save(os.path.join(args.output_dir, 'left_foot_contact.npy'), left_foot_contact)
     np.save(os.path.join(args.output_dir, 'right_foot_contact.npy'), right_foot_contact)
+    np.save(os.path.join(args.output_dir, 'smpl_contacts.npy'), smpl_contacts)
     np.save(os.path.join(args.output_dir, 'heightmap.npy'), heightmap)
     np.save(os.path.join(args.output_dir, 'dxdy.npy'), dxdy)
     np.save(os.path.join(args.output_dir, 'offset.npy'), offset)

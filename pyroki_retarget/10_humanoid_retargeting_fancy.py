@@ -37,7 +37,7 @@ class RetargetingWeights(TypedDict):
     """Local alignment weight, by matching the relative joint/keypoint positions and angles."""
     global_alignment: float
     """Global alignment weight, by matching the keypoint positions to the robot."""
-    floor_contact: float
+    contact: float
     """Floor contact weight, to place the robot's foot on the floor."""
     root_smoothness: float
     """Root smoothness weight, to penalize the robot's root from jittering too much."""
@@ -51,25 +51,27 @@ def main():
     """Main function for humanoid retargeting."""
 
     # urdf = load_robot_description("g1_description")
-    urdf_path = "unitree_description/urdf/g1_retarget/main.urdf"
+    urdf_path = "pyroki_retarget/unitree_description/urdf/g1_retarget/main.urdf"
     urdf = URDF.load(urdf_path)  # 直接从文件加载 URDF
     robot = pk.Robot.from_urdf(urdf)
     robot_coll = pk.collision.RobotCollision.from_urdf(urdf)
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', type=str, default="teaser_2000_2049/teaser_2000_0_opt_dm")
-    parser.add_argument('--output', type=str, default="teaser_2000_2049/teaser_2000_0_opt_dm.pkl")
+    parser.add_argument('--input_dir', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm")
+    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm.pkl")
 
     args = parser.parse_args()
     args.keypoints = os.path.join(args.input_dir, 'smpl_keypoints.npy')
     args.left_contact = os.path.join(args.input_dir, 'left_foot_contact.npy')
     args.right_contact = os.path.join(args.input_dir, 'right_foot_contact.npy')
+    args.contacts = os.path.join(args.input_dir, 'smpl_contacts.npy')
     args.heightmap = os.path.join(args.input_dir, 'heightmap.npy')
 
     # Load data from args
     smpl_keypoints = onp.load(args.keypoints)
     is_left_foot_contact = onp.load(args.left_contact)
     is_right_foot_contact = onp.load(args.right_contact)
+    smpl_contacts = onp.load(args.contacts)
     heightmap = onp.load(args.heightmap).transpose()
     grid_shape = onp.load(os.path.join(os.path.dirname(args.heightmap), 'grid_shape.npy'))
 
@@ -94,6 +96,13 @@ def main():
     # Get the left and right foot keypoints, projected on the heightmap.
     left_foot_keypoint_idx = SMPL_JOINT_NAMES.index("left_ankle")
     right_foot_keypoint_idx = SMPL_JOINT_NAMES.index("right_ankle")
+    contacted_keypoints = []
+    for t in range(num_timesteps):
+        contacted_idxs = onp.where(smpl_contacts[t] > 0)[0]
+        contacted_pos = smpl_keypoints[t, contacted_idxs]
+        contacted_keypoints.append(contacted_pos)
+    contacted_keypoints = onp.concatenate(contacted_keypoints, axis=0)  # For visualization
+
     left_foot_keypoints = smpl_keypoints[..., left_foot_keypoint_idx, :].reshape(-1, 3)
     right_foot_keypoints = smpl_keypoints[..., right_foot_keypoint_idx, :].reshape(
         -1, 3
@@ -112,16 +121,23 @@ def main():
     playing = server.gui.add_checkbox("playing", True)
     timestep_slider = server.gui.add_slider("timestep", 0, num_timesteps - 1, 1, 0)
     server.scene.add_mesh_trimesh("/heightmap", heightmap.to_trimesh())
+    # server.scene.add_point_cloud(
+    #     "/left_foot_keypoints",
+    #     onp.array(left_foot_keypoints[is_left_foot_contact.astype(bool)]),
+    #     onp.array((0, 255, 0)),
+    #     point_size=0.03,
+    #     point_shape='rounded',
+    # )
+    # server.scene.add_point_cloud(
+    #     "/right_foot_keypoints",
+    #     onp.array(right_foot_keypoints[is_right_foot_contact.astype(bool)]),
+    #     onp.array((0, 255, 0)),
+    #     point_size=0.03,
+    #     point_shape='rounded',
+    # )
     server.scene.add_point_cloud(
-        "/left_foot_keypoints",
-        onp.array(left_foot_keypoints[is_left_foot_contact.astype(bool)]),
-        onp.array((0, 255, 0)),
-        point_size=0.03,
-        point_shape='rounded',
-    )
-    server.scene.add_point_cloud(
-        "/right_foot_keypoints",
-        onp.array(right_foot_keypoints[is_right_foot_contact.astype(bool)]),
+        "/contacted_keypoints",
+        onp.array(contacted_keypoints),
         onp.array((0, 255, 0)),
         point_size=0.03,
         point_shape='rounded',
@@ -132,7 +148,7 @@ def main():
         RetargetingWeights(
             local_alignment=2.0,
             global_alignment=1.0,
-            floor_contact=1.0,
+            contact=1.0,
             root_smoothness=1.0,
             foot_skating=1.0,
             world_collision=0.1,
@@ -152,6 +168,7 @@ def main():
             is_right_foot_contact=is_right_foot_contact,
             left_foot_keypoints=left_foot_keypoints,
             right_foot_keypoints=right_foot_keypoints,
+            smpl_contacts=smpl_contacts,
             smpl_joint_retarget_indices=smpl_joint_retarget_indices,
             g1_joint_retarget_indices=g1_joint_retarget_indices,
             smpl_mask=smpl_mask,
@@ -209,6 +226,7 @@ def solve_retargeting(
     is_right_foot_contact: jnp.ndarray,
     left_foot_keypoints: jnp.ndarray,
     right_foot_keypoints: jnp.ndarray,
+    smpl_contacts: jnp.ndarray,
     smpl_joint_retarget_indices: jnp.ndarray,
     g1_joint_retarget_indices: jnp.ndarray,
     smpl_mask: jnp.ndarray,
@@ -337,53 +355,35 @@ def solve_retargeting(
         return (link_pos - keypoint_pos).flatten() * weights["global_alignment"]
 
     @jaxls.Cost.create_factory
-    def floor_contact_cost(
+    def general_contact_cost(
         var_values: jaxls.VarValues,
         var_Ts_world_root: jaxls.SE3Var,
         var_robot_cfg: jaxls.Var[jnp.ndarray],
         var_offset: OffsetVar,
-        is_left_foot_contact: jnp.ndarray,
-        is_right_foot_contact: jnp.ndarray,
-        left_foot_keypoints: jnp.ndarray,
-        right_foot_keypoints: jnp.ndarray,
+        smpl_contacts: jnp.ndarray,
+        keypoints: jnp.ndarray,
     ) -> jax.Array:
-        """Cost to place the robot on the floor:
-        - match foot keypoint positions, and
-        - penalize the foot from tilting too much.
-        """
         T_world_root = var_values[var_Ts_world_root]
         T_root_link = jaxlie.SE3(
             robot.forward_kinematics(cfg=var_values[var_robot_cfg])
         )
-
         offset = var_values[var_offset]
-        left_foot_pos = (T_world_root @ T_root_link).translation()[
-            left_foot_idx
-        ] + offset
-        right_foot_pos = (T_world_root @ T_root_link).translation()[
-            right_foot_idx
-        ] + offset
-        left_foot_contact_cost = (
-            is_left_foot_contact * (left_foot_pos - left_foot_keypoints) ** 2
-        )
-        right_foot_contact_cost = (
-            is_right_foot_contact * (right_foot_pos - right_foot_keypoints) ** 2
-        )
+        T_world_link = T_world_root @ T_root_link
+        link_pos = T_world_link.translation()[g1_joint_retarget_indices] + offset
 
-        # Also penalize the foot from tilting too much -- keep z axis up!
-        left_foot_ori = (
-            (T_world_root @ T_root_link).rotation().as_matrix()[left_foot_idx]
-        )
-        right_foot_ori = (
-            (T_world_root @ T_root_link).rotation().as_matrix()[right_foot_idx]
-        )
+        contact_mask = smpl_contacts[smpl_joint_retarget_indices] > 0
+        contact_residual_pos = contact_mask[:, None] * (link_pos - keypoints[smpl_joint_retarget_indices]) ** 2
+
+        # Orientation penalty only for feet
+        left_foot_ori = T_world_link.rotation().as_matrix()[left_foot_idx]
+        right_foot_ori = T_world_link.rotation().as_matrix()[right_foot_idx]
         left_foot_contact_residual_rot = jnp.where(
-            is_left_foot_contact,
+            smpl_contacts[7] > 0,
             left_foot_ori[2, 2] - 1,
             0.0,
         )
         right_foot_contact_residual_rot = jnp.where(
-            is_right_foot_contact,
+            smpl_contacts[8] > 0,
             right_foot_ori[2, 2] - 1,
             0.0,
         )
@@ -391,13 +391,12 @@ def solve_retargeting(
         return (
             jnp.concatenate(
                 [
-                    left_foot_contact_cost.flatten(),
-                    right_foot_contact_cost.flatten(),
+                    contact_residual_pos.flatten(),
                     left_foot_contact_residual_rot.flatten(),
                     right_foot_contact_residual_rot.flatten(),
                 ]
             )
-            * weights["floor_contact"]
+            * weights["contact"]
         )
 
     @jaxls.Cost.create_factory
@@ -512,14 +511,12 @@ def solve_retargeting(
             var_joints,
             target_keypoints,
         ),
-        floor_contact_cost(
+        general_contact_cost(
             var_Ts_world_root,
             var_joints,
             var_offset,
-            is_left_foot_contact,
-            is_right_foot_contact,
-            left_foot_keypoints,
-            right_foot_keypoints,
+            smpl_contacts,
+            target_keypoints,
         ),
         root_smoothness(
             jaxls.SE3Var(jnp.arange(1, timesteps)),
