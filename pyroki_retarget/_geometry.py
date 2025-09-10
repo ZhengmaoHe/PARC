@@ -543,7 +543,7 @@ class Heightmap(CollGeom):
             # vmap over flattened batch dimension.
             vmap_interpolate = jax.vmap(
                 lambda h, c: jax.scipy.ndimage.map_coordinates(
-                    h, c[:, None], order=1, mode="nearest"
+                    h, c[:, None], order=0, mode="nearest"  # Change to nearest for stepped projection
                 ).squeeze(),
                 in_axes=(0, 0),
             )
@@ -554,7 +554,7 @@ class Heightmap(CollGeom):
             interpolated_heights = jax.scipy.ndimage.map_coordinates(
                 hm_data_bc,
                 (coords_bc[0:1], coords_bc[1:2]),  # ([r_cont], [c_cont])
-                order=1,
+                order=0,  # Change to nearest for stepped projection
                 mode="nearest",
             ).squeeze()
 

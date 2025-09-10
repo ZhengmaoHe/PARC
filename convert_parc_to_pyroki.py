@@ -57,9 +57,9 @@ SMPL_JOINT_NAMES = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2050_2099/teaser_2050_0_opt_dm.pkl', help='Path to input .pkl file')
+    parser.add_argument('--pkl', type=str, default='/home/ubuntu/myProject/PARC/parc_dataset/april272025/iter_3/teaser_2000_2049/teaser_2000_0_opt_dm.pkl', help='Path to input .pkl file')
     parser.add_argument('--xml', type=str, default='data/assets/humanoid.xml', help='Path to humanoid.xml')
-    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2050_2099/teaser_2050_0_opt_dm', help='Directory to output npy files')
+    parser.add_argument('--output_dir', type=str, default='/home/ubuntu/myProject/PARC/pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm', help='Directory to output npy files')
     parser.add_argument('--padding', type=float, default=2.0, help='Padding for terrain slicing in meters')
     args = parser.parse_args()
 
@@ -107,6 +107,8 @@ def main():
         'upper_torso': 6,  # spine_2
         'left_foot': 7,
         'right_foot': 8,
+        # 'left_foot': 10,
+        # 'right_foot': 11,
         'neck': 9,  # spine_3
         'left_foot_toe': 10,  # Approximate left_foot as left_big_toe
         'right_foot_toe': 11,  # Approximate right_foot as right_big_toe
