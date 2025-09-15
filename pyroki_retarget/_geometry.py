@@ -502,6 +502,96 @@ class Heightmap(CollGeom):
         intersect_points = local_coords.at[..., 2].set(height)
         return self.pose.apply(intersect_points)
 
+    def project_to_nearest_face(
+        self, points: Float[Array, "*batch 3"]  # type: ignore
+    ) -> Float[Array, "*batch 3"]:  # type: ignore
+        """Projects points to the nearest face (horizontal or vertical) based on distance."""
+        def project_single(local_point, height_data, x_scale, y_scale, height_scale):
+            # Compute grid indices (similar to interpolation)
+            sx, sy = local_point[0], local_point[1]
+            c_cont = sx / x_scale + (cols - 1) / 2.0
+            r_cont = sy / y_scale + (rows - 1) / 2.0
+            r = int(jnp.clip(jnp.round(r_cont), 0, rows - 1))  # To Python int
+            c = int(jnp.clip(jnp.round(c_cont), 0, cols - 1))  # To Python int
+            
+            h = height_data[r, c] * height_scale
+            x0 = (c - (cols - 1) / 2.0) * x_scale
+            y0 = (r - (rows - 1) / 2.0) * y_scale
+            x1 = x0 + x_scale
+            y1 = y0 + y_scale
+            
+            # Distance to horizontal top face (vertical distance)
+            dist_horizontal = jnp.abs(local_point[2] - h)
+            proj_horizontal = jnp.array([local_point[0], local_point[1], h])
+            
+            # Check vertical faces (North, South, West, East)
+            min_dist = dist_horizontal
+            best_proj = proj_horizontal
+            
+            directions = [
+                # North (y=y0)
+                (r > 0, (r-1, c), y0, 'y', False),
+                # South (y=y1)
+                (r < rows-1, (r+1, c), y1, 'y', True),
+                # West (x=x0)
+                (c > 0, (r, c-1), x0, 'x', False),
+                # East (x=x1)
+                (c < cols-1, (r, c+1), x1, 'x', True)
+            ]
+            
+            for has_neighbor, neighbor_rc, wall_pos, axis, is_upper in directions:
+                if has_neighbor:
+                    nr, nc = neighbor_rc
+                    h_neighbor = height_data[nr, nc] * height_scale
+                else:
+                    h_neighbor = h  # No wall if no neighbor
+                
+                z_low = jnp.minimum(h, h_neighbor)
+                z_high = jnp.maximum(h, h_neighbor)
+                
+                # Only if wall exists (height diff)
+                wall_exists = z_high > z_low
+                
+                # Project to wall plane (compute always, but invalidate dist if no wall)
+                if axis == 'x':
+                    proj_x = wall_pos
+                    proj_y = jnp.clip(local_point[1], y0, y1)
+                else:
+                    proj_x = jnp.clip(local_point[0], x0, x1)
+                    proj_y = wall_pos
+                proj_z = jnp.clip(local_point[2], z_low, z_high)
+                proj = jnp.array([proj_x, proj_y, proj_z])
+                
+                # Distance (inf if no wall)
+                dist = jnp.linalg.norm(local_point - proj)
+                dist = jnp.where(wall_exists, dist, jnp.inf)
+                
+                # Update if better (prefer horizontal on tie)
+                is_better = (dist < min_dist) | ((dist == min_dist) & (axis == 'z'))
+                min_dist = jnp.where(is_better, dist, min_dist)
+                best_proj = jnp.where(is_better, proj, best_proj)
+            
+            return best_proj
+        
+        # Setup
+        local_points = self.pose.inverse().apply(points)
+        rows, cols = self.height_data.shape[-2:]
+        orig_shape = local_points.shape[:-1]
+        
+        # Flatten batch dims for loop
+        flat_points = local_points.reshape((-1, 3))
+        projected_flat = []
+        
+        for i in range(flat_points.shape[0]):
+            proj = project_single(
+                flat_points[i], self.height_data, self.x_scale, self.y_scale, self.height_scale
+            )
+            projected_flat.append(proj)
+        
+        projected_local = jnp.stack(projected_flat).reshape(orig_shape + (3,))
+        
+        return self.pose.apply(projected_local)
+
     def _interpolate_height_at_coords(
         self,
         world_coords: Float[Array, "*batch 3"],  # type: ignore

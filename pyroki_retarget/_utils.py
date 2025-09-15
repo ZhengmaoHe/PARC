@@ -167,8 +167,10 @@ G1_LINK_NAMES = [
     'waist_yaw_link', 
     'waist_roll_link', 
     'torso_link', 
+    'torso_virtual_link',
     'logo_link', 
     'head_link', 
+    'head_virtual_link',
     'imu_in_torso', 
     'imu_in_pelvis', 
     'mid360_link', 
@@ -198,6 +200,8 @@ def get_humanoid_retarget_indices() -> tuple[jnp.ndarray, jnp.ndarray]:
 
     for smpl_name, g1_name in [
         ("pelvis", "pelvis_virtual_link"),
+        ("spine_1", "torso_virtual_link"),
+        ("head", "head_virtual_link"),
         ("left_hip", "left_hip_pitch_link"),
         ("right_hip", "right_hip_pitch_link"),
         ("left_knee", "left_knee_link"),

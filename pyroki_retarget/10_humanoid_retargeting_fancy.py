@@ -56,9 +56,10 @@ def main():
     robot = pk.Robot.from_urdf(urdf)
     robot_coll = pk.collision.RobotCollision.from_urdf(urdf)
     
+    default_pkl = 'parc_dataset/april272025/iter_1/boxes_300_399/boxes_301_1_opt_dm.pkl'
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm")
-    parser.add_argument('--output', type=str, default="pyroki_retarget/teaser_2000_2049/teaser_2000_0_opt_dm.pkl")
+    parser.add_argument('--input_dir', type=str, default=default_pkl.replace('.pkl', '').replace('parc_dataset', 'pyroki_retarget'))
+    parser.add_argument('--output', type=str, default=default_pkl.replace('parc_dataset', 'pyroki_retarget'))
 
     args = parser.parse_args()
     args.keypoints = os.path.join(args.input_dir, 'smpl_keypoints.npy')
@@ -84,15 +85,25 @@ def main():
     dxdy = onp.load(os.path.join(os.path.dirname(args.heightmap), 'dxdy.npy'))
 
     height_ratio = 132/175.0
-    center_offset = offset + ((grid_shape-1) * dxdy / 2)
+    center_offset = (offset + ((grid_shape-1) * dxdy / 2)) * height_ratio
     heightmap = pk.collision.Heightmap(
         # pose=jaxlie.SE3.identity(),
         pose = jaxlie.SE3.from_translation(jnp.array([center_offset[0], center_offset[1], 0.0])),
-        size=jnp.array([dxdy[1], dxdy[0], 1.0*height_ratio]),
+        size=jnp.array([dxdy[1] * height_ratio, dxdy[0] * height_ratio, 1.0*height_ratio]),
         height_data=heightmap,
     )
+    # smpl_keypoints[:, :, 2] = smpl_keypoints[:, :, 2] * height_ratio
+    smpl_keypoints = smpl_keypoints * height_ratio
 
-    smpl_keypoints[:, :, 2] = smpl_keypoints[:, :, 2] * height_ratio
+    # Project contacted keypoints to nearest face
+    for t in range(num_timesteps):
+        contacted_idxs = onp.where(smpl_contacts[t] > 0)[0]
+        if len(contacted_idxs) > 0:
+            contacted_pos = smpl_keypoints[t, contacted_idxs]
+            projected_pos = onp.array(heightmap.project_to_nearest_face(jnp.array(contacted_pos)))
+            smpl_keypoints[t, contacted_idxs] = projected_pos
+
+
     # Get the left and right foot keypoints, projected on the heightmap.
     left_foot_keypoint_idx = SMPL_JOINT_NAMES.index("left_ankle")
     right_foot_keypoint_idx = SMPL_JOINT_NAMES.index("right_ankle")
@@ -203,8 +214,8 @@ def main():
             robot_keypoints = T_world_link.translation()[g1_joint_retarget_indices]
             server.scene.add_point_cloud(
                 "/target_keypoints",
-                onp.array(smpl_keypoints[tstep]),
-                onp.array((0, 0, 255))[None].repeat(45, axis=0),
+                onp.array(smpl_keypoints[tstep, smpl_joint_retarget_indices]),
+                onp.array((0, 0, 255)),
                 point_size=0.02,
             )
             server.scene.add_point_cloud(
@@ -241,6 +252,7 @@ def solve_retargeting(
     # Robot properties.
     # - Joints that should move less for natural humanoid motion.
     print(robot.joints.actuated_names)
+    print(robot.links.names)
     joints_to_move_less = jnp.array(
         [
             robot.joints.actuated_names.index(name)
