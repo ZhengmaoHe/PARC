@@ -13,14 +13,15 @@ def create_conn_tree(robot: pk.Robot, link_indices: jnp.ndarray) -> jnp.ndarray:
 
     def is_direct_chain_connection(idx1: int, idx2: int) -> bool:
         """Check if two joints are connected in the kinematic chain without other retargeted joints between"""
-        joint1 = link_indices[idx1]
-        joint2 = link_indices[idx2]
+        link1 = link_indices[idx1]
+        link2 = link_indices[idx2]
 
         # Check path from joint2 up to root
-        current = joint2
+        current = link2
         while current != -1:
-            parent = robot.joints.parent_indices[current]
-            if parent == joint1:
+            parent = robot.links.parent_link_indices[current] # `joints.parent_indices` to links
+            # parent = robot.joints.parent_indices[current]
+            if parent == link1:
                 return True
             if parent in link_indices:
                 # Hit another retargeted joint before finding joint1
@@ -28,10 +29,11 @@ def create_conn_tree(robot: pk.Robot, link_indices: jnp.ndarray) -> jnp.ndarray:
             current = parent
 
         # Check path from joint1 up to root
-        current = joint1
+        current = link1
         while current != -1:
-            parent = robot.joints.parent_indices[current]
-            if parent == joint2:
+            parent = robot.links.parent_link_indices[current]
+            # parent = robot.joints.parent_indices[current]
+            if parent == link2:
                 return True
             if parent in link_indices:
                 # Hit another retargeted joint before finding joint2
@@ -199,9 +201,12 @@ def get_humanoid_retarget_indices() -> tuple[jnp.ndarray, jnp.ndarray]:
     g1_joint_retarget_indices = []
 
     for smpl_name, g1_name in [
-        ("pelvis", "pelvis_virtual_link"),
-        ("spine_1", "torso_virtual_link"),
-        ("head", "head_virtual_link"),
+        # ("pelvis", "pelvis_virtual_link"),
+        # ("spine_1", "torso_virtual_link"),
+        # ("head", "head_virtual_link"),
+        ("pelvis", "pelvis"),
+        # ("spine_1", "torso_link"),
+        # ("head", "head_link"),
         ("left_hip", "left_hip_pitch_link"),
         ("right_hip", "right_hip_pitch_link"),
         ("left_knee", "left_knee_link"),

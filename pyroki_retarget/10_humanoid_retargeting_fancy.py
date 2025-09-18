@@ -14,6 +14,7 @@ import jax_dataclasses as jdc
 import jaxlie
 import jaxls
 import numpy as onp
+import colorsys
 import pyroki as pk
 import viser
 from viser.extras import ViserUrdf
@@ -35,8 +36,10 @@ from yourdfpy import URDF
 class RetargetingWeights(TypedDict):
     local_alignment: float
     """Local alignment weight, by matching the relative joint/keypoint positions and angles."""
-    global_alignment: float
+    pc_alignment_world: float
     """Global alignment weight, by matching the keypoint positions to the robot."""
+    pc_alignment_local: float
+    """Local alignment weight, by matching the keypoint positions to the robot."""
     contact: float
     """Floor contact weight, to place the robot's foot on the floor."""
     root_smoothness: float
@@ -56,7 +59,7 @@ def main():
     robot = pk.Robot.from_urdf(urdf)
     robot_coll = pk.collision.RobotCollision.from_urdf(urdf)
     
-    default_pkl = 'parc_dataset/april272025/iter_1/boxes_300_399/boxes_301_1_opt_dm.pkl'
+    default_pkl = 'parc_dataset/april272025/iter_1/boxes_0_99/boxes_0_0_opt_dm.pkl'
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', type=str, default=default_pkl.replace('.pkl', '').replace('parc_dataset', 'pyroki_retarget'))
     parser.add_argument('--output', type=str, default=default_pkl.replace('parc_dataset', 'pyroki_retarget'))
@@ -125,6 +128,20 @@ def main():
         get_humanoid_retarget_indices()
     )
     smpl_mask = create_conn_tree(robot, g1_joint_retarget_indices)
+    
+    # Specific links for local alignment
+    specific_links = [
+        "left_shoulder_roll_link",
+        "right_shoulder_roll_link",
+        # "left_rubber_hand",
+        # "right_rubber_hand",
+        # "pelvis_virtual_link",
+        # "torso_virtual_link",
+        # "head_virtual_link"
+    ]
+    g1_retarget_names = [robot.links.names[idx] for idx in g1_joint_retarget_indices]
+    specific_mask = jnp.array([name in specific_links for name in g1_retarget_names])
+    specific_mask = jnp.broadcast_to(specific_mask[None], (num_timesteps, specific_mask.shape[0]))
 
     server = viser.ViserServer()
     base_frame = server.scene.add_frame("/base", show_axes=False)
@@ -154,16 +171,30 @@ def main():
         point_shape='rounded',
     )
 
+    # Generate unique colors for each keypoint pair
+    num_points = len(smpl_joint_retarget_indices)
+    color_array = onp.array([colorsys.hsv_to_rgb(i / num_points, 1.0, 1.0) for i in range(num_points)]) * 255
+    color_array = color_array.astype(int)
+
     weights = pk.viewer.WeightTuner(
         server,
         RetargetingWeights(
             local_alignment=2.0,
-            global_alignment=1.0,
-            contact=1.0,
-            root_smoothness=1.0,
-            skating=1.0,
-            world_collision=0.1,
+            pc_alignment_world=1.0,
+            pc_alignment_local=0.0,
+            contact=1.0, #1.0,
+            root_smoothness=1.0, #1.0,
+            skating=1.0, #1.0,
+            world_collision=0.2, #1.0,
+            scale_regularization=1.0, #1.0,
+            velocity_limit=200.0, #1000.0,
+            smoothness_cost=0.2, #0.2,
+            rest_cost=1.0, #1.0,
+            self_collision_cost=2.0, #2.0,
+            limit_cost=100.0, #100.0,
         ),  # type: ignore
+        default_min=0,
+        default_max=1000,
     )
 
     Ts_world_root, joints = None, None
@@ -171,6 +202,7 @@ def main():
     def generate_trajectory():
         nonlocal Ts_world_root, joints
         gen_button.disabled = True
+        # jax.profiler.start_trace("./tmp/retarget_trace")
         Ts_world_root, joints = solve_retargeting(
             robot=robot,
             robot_coll=robot_coll,
@@ -183,9 +215,11 @@ def main():
             smpl_joint_retarget_indices=smpl_joint_retarget_indices,
             g1_joint_retarget_indices=g1_joint_retarget_indices,
             smpl_mask=smpl_mask,
+            specific_mask=specific_mask,
             heightmap=heightmap,
             weights=weights.get_weights(),  # type: ignore
         )
+        # jax.profiler.stop_trace()
         gen_button.disabled = False
 
     gen_button = server.gui.add_button("Retarget!")
@@ -204,8 +238,7 @@ def main():
             urdf_vis.update_cfg(onp.array(joints[tstep]))
             # Compute current robot keypoints
             current_cfg = jnp.array(joints[tstep])
-            fk = robot.forward_kinematics(cfg=current_cfg)
-            T_root_link = jaxlie.SE3(fk)
+            T_root_link = adjusted_forward_kinematics(robot, current_cfg)
             T_world_root_t = jaxlie.SE3.from_rotation_and_translation(
                 jaxlie.SO3(wxyz=jnp.array(Ts_world_root.wxyz_xyz[tstep][:4])),
                 jnp.array(Ts_world_root.wxyz_xyz[tstep][4:])
@@ -215,13 +248,13 @@ def main():
             server.scene.add_point_cloud(
                 "/target_keypoints",
                 onp.array(smpl_keypoints[tstep, smpl_joint_retarget_indices]),
-                onp.array((0, 0, 255)),
+                color_array,
                 point_size=0.02,
             )
             server.scene.add_point_cloud(
                 "/robot_keypoints",
                 onp.array(robot_keypoints),
-                onp.array((255, 0, 0)),
+                color_array,
                 point_size=0.02,
             )
 
@@ -241,6 +274,7 @@ def solve_retargeting(
     smpl_joint_retarget_indices: jnp.ndarray,
     g1_joint_retarget_indices: jnp.ndarray,
     smpl_mask: jnp.ndarray,
+    specific_mask: jnp.ndarray,
     heightmap: pk.collision.Heightmap,
     weights: RetargetingWeights,
 ) -> Tuple[jaxlie.SE3, jnp.ndarray]:
@@ -256,7 +290,13 @@ def solve_retargeting(
     joints_to_move_less = jnp.array(
         [
             robot.joints.actuated_names.index(name)
-            for name in ["left_hip_yaw_joint", "right_hip_yaw_joint"]
+            for name in ["left_hip_yaw_joint", "right_hip_yaw_joint"] #, "waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint"]
+        ]
+    )
+    joints_to_move_slowly = jnp.array(
+        [
+            robot.joints.actuated_names.index(name)
+            for name in ["waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint"]
         ]
     )
     # - Foot indices.
@@ -291,7 +331,7 @@ def solve_retargeting(
         - and matching the relative angles between the vectors.
         """
         robot_cfg = var_values[var_robot_cfg]
-        T_root_link = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg))
+        T_root_link = adjusted_forward_kinematics(robot, robot_cfg)
         T_world_root = var_values[var_Ts_world_root]
         T_world_link = T_world_root @ T_root_link
 
@@ -341,17 +381,17 @@ def solve_retargeting(
     ) -> jax.Array:
         """Regularize the scale of the retargeted joints."""
         # Close to 1.
-        res_0 = (var_values[var_smpl_joints_scale] - 1.0).flatten() * 1.0
+        res_0 = (var_values[var_smpl_joints_scale] - 1.0).flatten() * 1.0 * weights["scale_regularization"]
         # Symmetric.
         res_1 = (
             var_values[var_smpl_joints_scale] - var_values[var_smpl_joints_scale].T
-        ).flatten() * 100.0
+        ).flatten() * 100.0 * weights["scale_regularization"]
         # Non-negative.
-        res_2 = jnp.clip(-var_values[var_smpl_joints_scale], min=0).flatten() * 100.0
+        res_2 = jnp.clip(-var_values[var_smpl_joints_scale], min=0).flatten() * 100.0 * weights["scale_regularization"]
         return jnp.concatenate([res_0, res_1, res_2])
 
     @jaxls.Cost.create_factory
-    def pc_alignment_cost(
+    def pc_alignment_world_cost(
         var_values: jaxls.VarValues,
         var_Ts_world_root: jaxls.SE3Var,
         var_robot_cfg: jaxls.Var[jnp.ndarray],
@@ -360,11 +400,35 @@ def solve_retargeting(
         """Soft cost to align the human keypoints to the robot, in the world frame."""
         T_world_root = var_values[var_Ts_world_root]
         robot_cfg = var_values[var_robot_cfg]
-        T_root_link = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg))
+        T_root_link = adjusted_forward_kinematics(robot, robot_cfg)
         T_world_link = T_world_root @ T_root_link
         link_pos = T_world_link.translation()[g1_joint_retarget_indices]
         keypoint_pos = keypoints[smpl_joint_retarget_indices]
-        return (link_pos - keypoint_pos).flatten() * weights["global_alignment"]
+        return (link_pos - keypoint_pos).flatten() * weights["pc_alignment_world"]
+
+    @jaxls.Cost.create_factory
+    def pc_alignment_local_cost(
+        var_values: jaxls.VarValues,
+        var_Ts_world_root: jaxls.SE3Var,
+        var_robot_cfg: jaxls.Var[jnp.ndarray],
+        keypoints: jnp.ndarray,
+        specific_mask: jnp.ndarray,
+    ) -> jax.Array:
+        """Soft cost to align the human keypoints to the robot, in the root frame."""
+        robot_cfg = var_values[var_robot_cfg]
+        T_root_link = adjusted_forward_kinematics(robot, robot_cfg)
+        link_pos = T_root_link.translation()[g1_joint_retarget_indices]
+
+        T_world_root = var_values[var_Ts_world_root]
+        T_root_world = T_world_root.inverse()
+        keypoint_pos_world = keypoints[smpl_joint_retarget_indices]
+        # Transform keypoints to root frame
+        keypoint_pos_root = jax.vmap(lambda p: (T_root_world @ jaxlie.SE3.from_translation(p)).translation())(keypoint_pos_world)
+
+        # Compute residual for all and mask to only include specific links
+        residual = (link_pos - keypoint_pos_root) * specific_mask[..., None]
+
+        return residual.flatten() * weights["pc_alignment_local"]  # Or use a new weight if needed
 
     @jaxls.Cost.create_factory
     def general_contact_cost(
@@ -376,9 +440,7 @@ def solve_retargeting(
         keypoints: jnp.ndarray,
     ) -> jax.Array:
         T_world_root = var_values[var_Ts_world_root]
-        T_root_link = jaxlie.SE3(
-            robot.forward_kinematics(cfg=var_values[var_robot_cfg])
-        )
+        T_root_link = adjusted_forward_kinematics(robot, var_values[var_robot_cfg])
         offset = var_values[var_offset]
         T_world_link = T_world_root @ T_root_link
         link_pos = T_world_link.translation()[g1_joint_retarget_indices] + offset
@@ -435,14 +497,14 @@ def solve_retargeting(
     ) -> jax.Array:
         T_world_root = var_values[var_Ts_world_root]
         robot_cfg = var_values[var_robot_cfg]
-        T_root_link = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg))
+        T_root_link = adjusted_forward_kinematics(robot, robot_cfg)
         offset = var_values[var_offset]
         T_link = T_world_root @ T_root_link
         link_pos = T_link.translation()[g1_joint_retarget_indices] + offset
 
         T_world_root_prev = var_values[var_Ts_world_root_prev]
         robot_cfg_prev = var_values[var_robot_cfg_prev]
-        T_root_link_prev = jaxlie.SE3(robot.forward_kinematics(cfg=robot_cfg_prev))
+        T_root_link_prev = adjusted_forward_kinematics(robot, robot_cfg_prev)
         offset_prev = var_values[var_offset_prev]
         T_link_prev = T_world_root_prev @ T_root_link_prev
         link_pos_prev = T_link_prev.translation()[g1_joint_retarget_indices] + offset_prev
@@ -452,6 +514,18 @@ def solve_retargeting(
 
         return skating_residual.flatten() * weights["skating"]
 
+    @jaxls.Cost.create_factory
+    def velocity_limit_cost(
+        var_values: jaxls.VarValues,
+        var_robot_cfg: jaxls.Var[jnp.ndarray],
+        var_robot_cfg_prev: jaxls.Var[jnp.ndarray],
+    ) -> jax.Array:
+        vel = (var_values[var_robot_cfg] - var_values[var_robot_cfg_prev]) / (1/30.0)
+        abs_vel = jnp.abs(vel)
+        thresh = 50.0  # rad/s, adjust as needed
+        scale = 0.1  # Smoothness scale
+        penalty = jax.nn.softplus((abs_vel - thresh) / scale) * scale * weights["velocity_limit"]  # Smooth approximation of clip
+        return penalty.flatten()
 
     @jaxls.Cost.create_factory
     def world_collision_cost(
@@ -489,33 +563,42 @@ def solve_retargeting(
         pk.costs.limit_cost(
             jax.tree.map(lambda x: x[None], robot),
             var_joints,
-            100.0,
+            weights["limit_cost"],
         ),
         pk.costs.smoothness_cost(
             robot.joint_var_cls(jnp.arange(1, timesteps)),
             robot.joint_var_cls(jnp.arange(0, timesteps - 1)),
-            jnp.array([0.2]),
+            # jnp.array([weights["smoothness_cost"]]),
+            jnp.full(var_joints.default_factory().shape, weights["smoothness_cost"])
+            .at[joints_to_move_slowly]
+            .set(5.0)[None]*weights["smoothness_cost"]
         ),
         pk.costs.rest_cost(
             var_joints,
             var_joints.default_factory()[None],
             jnp.full(var_joints.default_factory().shape, 0.2)
             .at[joints_to_move_less]
-            .set(2.0)[None],
+            .set(2.0)[None]*weights["rest_cost"],
         ),
         pk.costs.self_collision_cost(
             jax.tree.map(lambda x: x[None], robot),
             jax.tree.map(lambda x: x[None], robot_coll),
             var_joints,
             margin=0.05,
-            weight=2.0,
+            weight=weights["self_collision_cost"],
         ),
         # Costs that are scene-centric.
-        pc_alignment_cost(
+        pc_alignment_world_cost(
             var_Ts_world_root,
             var_joints,
             target_keypoints,
         ),
+        # pc_alignment_local_cost(
+        #     var_Ts_world_root,
+        #     var_joints,
+        #     target_keypoints,
+        #     specific_mask,
+        # ),
         general_contact_cost(
             var_Ts_world_root,
             var_joints,
@@ -541,6 +624,10 @@ def solve_retargeting(
             var_joints,
             var_offset,
         ),
+        velocity_limit_cost(
+            robot.joint_var_cls(jnp.arange(1, timesteps)),
+            robot.joint_var_cls(jnp.arange(0, timesteps - 1)),
+        ),
     ]
 
     solution = (
@@ -556,6 +643,27 @@ def solve_retargeting(
     offset = solution[var_offset]
     transform = jaxlie.SE3.from_translation(offset) @ transform
     return transform, solution[var_joints]
+
+
+@jdc.jit
+def adjusted_forward_kinematics(robot: pk.Robot, cfg: jnp.ndarray) -> jaxlie.SE3:
+    fk = robot.forward_kinematics(cfg=cfg)
+    T_root_link = jaxlie.SE3(fk)
+
+    adjustments = {
+        'pelvis': jnp.array([0., 0., -0.12]),
+        'torso_link': jnp.array([0., 0., 0.05]),
+        'head_link': jnp.array([0.0, 0., 0.23]),
+    }
+
+    translations = T_root_link.translation()
+    for name, offset in adjustments.items():
+        idx = robot.links.names.index(name)
+        translations = translations.at[idx].add(offset)
+
+    T_root_link = jaxlie.SE3.from_rotation_and_translation(T_root_link.rotation(), translations)
+
+    return T_root_link
 
 
 if __name__ == "__main__":

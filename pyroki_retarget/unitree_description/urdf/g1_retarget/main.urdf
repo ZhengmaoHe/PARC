@@ -537,6 +537,11 @@
             </geometry>
         </collision>
     </link>
+    <joint name="torso_virtual_joint" type="fixed">
+        <origin xyz="0.0 0 0.05" rpy="0 0 0"/>
+        <parent link="torso_link"/>
+        <child link="torso_virtual_link"/>
+    </joint>
     <link name="torso_virtual_link">
         <inertial>
             <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -549,11 +554,6 @@
             </geometry>
         </visual>
     </link>
-    <joint name="torso_virtual_joint" type="fixed">
-        <origin xyz="0.0 0 0.05" rpy="0 0 0"/>
-        <parent link="torso_link"/>
-        <child link="torso_virtual_link"/>
-    </joint>
     <joint name="waist_pitch_joint" type="revolute">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <parent link="waist_roll_link"/>
