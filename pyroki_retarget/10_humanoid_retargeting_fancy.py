@@ -148,7 +148,8 @@ def main():
     urdf_vis = ViserUrdf(server, urdf, root_node_name="/base")
     playing = server.gui.add_checkbox("playing", True)
     timestep_slider = server.gui.add_slider("timestep", 0, num_timesteps - 1, 1, 0)
-    server.scene.add_mesh_trimesh("/heightmap", heightmap.to_trimesh())
+    heightmap_trimesh = heightmap.to_trimesh()
+    server.scene.add_mesh_trimesh("/heightmap", heightmap_trimesh)
     # server.scene.add_point_cloud(
     #     "/left_foot_keypoints",
     #     onp.array(left_foot_keypoints[is_left_foot_contact.astype(bool)]),
@@ -227,6 +228,25 @@ def main():
 
     generate_trajectory()
     assert Ts_world_root is not None and joints is not None
+
+    # After solving
+    # Construct the trajectory array
+    trajectory = []
+    for t in range(num_timesteps):
+        root = Ts_world_root.wxyz_xyz[t]
+        pos = root[4:7]  # x y z
+        quat_components = jnp.concatenate([root[1:4], root[0:1]])  # qx qy qz qw
+        full_qpos = jnp.concatenate([pos, quat_components, joints[t]])
+        trajectory.append(full_qpos)
+    trajectory = jnp.stack(trajectory)
+
+    # Save to CSV
+    output_csv = args.output.replace('.pkl', '/motion.csv')
+    onp.savetxt(output_csv, onp.array(trajectory), delimiter=',', fmt='%f')
+    heightmap_ply = args.output.replace('.pkl', '/heightmap.ply')
+    heightmap_trimesh.export(heightmap_ply)
+    print(f"Saved retargeted trajectory to {output_csv}")
+    print(f"Saved heightmap to {heightmap_ply}")
 
     while True:
         with server.atomic():
